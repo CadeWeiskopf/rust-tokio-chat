@@ -31,23 +31,9 @@ async fn main() -> Result<(), Error> {
     Ok::<_, Error>(())
   });
 
-  client().await?;
-
-  Ok(())
-}
-
-async fn client() -> Result<(), Error> {
-  let uri = Uri::from_static("ws://127.0.0.1:3000");
-  let (mut client, _) = ClientBuilder::from_uri(uri).connect().await?;
-
-  client.send(Message::text("Hello world!")).await?;
-  while let Some(Ok(msg)) = client.next().await {
-    if let Some(text) = msg.as_text() {
-      assert_eq!(text, "Hello world!");
-      println!("Client got: {}", text);
-      // We got one message, just stop now
-      client.close().await?;
-    }
+  loop {
+    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
   }
+
   Ok(())
 }
