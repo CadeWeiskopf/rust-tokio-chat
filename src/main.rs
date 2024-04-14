@@ -10,16 +10,12 @@ use tokio::sync::Mutex;
 async fn main() -> Result<(), Error> {
   let listener = TcpListener::bind("127.0.0.1:3000").await?;
   let mut clients: HashMap<Uuid, Arc<Mutex<tokio_websockets::WebSocketStream<tokio::net::TcpStream>>>> = HashMap::new();
+  let clients_map = Arc::new(Mutex::new(clients));
 
   tokio::spawn(async move {
-    /*
-     * Spawn server start listening
-     */
     println!("Server listening... {:?}", listener); 
     while let Ok((stream, _)) = listener.accept().await { 
-      /*
-       * server setup client stream
-       */
+      // server setup client stream
       let ws_stream_result = ServerBuilder::new()
         .accept(stream)
         .await;
@@ -34,8 +30,9 @@ async fn main() -> Result<(), Error> {
       };
       let id = Uuid::new_v4();
       let client_stream = Arc::new(Mutex::new(ws_stream));
-      clients.insert(id, client_stream.clone());
-      println!("\nNew connection to server {} \n Total Clients = {}\n", id, clients.len());
+      let mut clients_map_lock = clients_map.lock().await;
+      clients_map_lock.insert(id, client_stream.clone());
+      println!("\nNew connection to server {} \n Total Clients = {}\n", id, clients_map_lock.len());
       
       // spawn async task to listen for client messages
       tokio::spawn(async move {
