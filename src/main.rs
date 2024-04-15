@@ -13,6 +13,7 @@ async fn main() -> Result<(), Error> {
   let clients: HashMap<Uuid, Arc<Mutex<SplitSink<tokio_websockets::WebSocketStream<TcpStream>, Message>>>> = HashMap::new();
   let clients_map = Arc::new(Mutex::new(clients));
   let messages_vec: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
+  let messages_vec_clone = messages_vec.clone();
   let clients_map_clone = clients_map.clone();
   let clients_map_clone2 = clients_map.clone();
 
@@ -95,20 +96,24 @@ async fn main() -> Result<(), Error> {
   tokio::spawn(async move {
     loop {
       tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-      let clients_map_lock = clients_map_clone2.lock().await;
-      for (id, client_stream) in clients_map_lock.iter() {
-        println!("send {}", id);
-        let mut c = client_stream.lock().await;
-        let send_msg_result = c.send(Message::text("hello".to_string())).await;
-        match send_msg_result {
-          Ok(()) => {},
-          Err(err) => {
-            eprintln!("err sending message to client {}: {}", id, err);
+      let mut messages_vec_lock = messages_vec_clone.lock().await;
+      let n = messages_vec_lock.len();
+      for msg_json in messages_vec_lock.drain(0..n) {
+        let clients_map_lock = clients_map_clone2.lock().await;
+        for (id, client_stream) in clients_map_lock.iter() {
+          println!("send {}", id);
+          let mut c = client_stream.lock().await;
+          let send_msg_result = c.send(Message::text(msg_json["message"].to_string())).await;
+          match send_msg_result {
+            Ok(()) => {},
+            Err(err) => {
+              eprintln!("err sending message to client {}: {}", id, err);
+            }
           }
+          std::mem::drop(c);
         }
-        std::mem::drop(c);
+        std::mem::drop(clients_map_lock);
       }
-      std::mem::drop(clients_map_lock);
     }  
   });
 
