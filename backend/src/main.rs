@@ -9,7 +9,7 @@ use serde_json::Value;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-  let listener = TcpListener::bind("127.0.0.1:3000").await?;
+  let listener = TcpListener::bind("127.0.0.1:8080").await?;
   let clients: HashMap<Uuid, Arc<Mutex<SplitSink<tokio_websockets::WebSocketStream<TcpStream>, Message>>>> = HashMap::new();
   let clients_map = Arc::new(Mutex::new(clients));
   let messages_vec: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));

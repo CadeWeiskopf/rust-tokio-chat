@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FAKE_MESSAGES, Message, MessageType } from "./Chat.model";
 import styles from "./Chat.module.css";
 import { sendMessage } from "../../api/messages";
@@ -8,14 +8,50 @@ const cssClassConstructor = (classes: string[]): string => {
 };
 
 export const Chat: React.FC = () => {
-  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<Message[]>(FAKE_MESSAGES);
+  const [websocket, setWebsocket] = useState<WebSocket>();
   const messageInput = useRef<HTMLInputElement>(null);
-  const messages = FAKE_MESSAGES;
+  const chatWindow = useRef<HTMLDivElement>(null);
+  const sendButton = useRef<HTMLButtonElement>(null);
   const localUserId = "c";
   const localUsername = "Edgar Allen Poe";
+
+  useEffect(() => {
+    const websocket = new WebSocket("ws://127.0.0.1:8080");
+    websocket.onopen = (event: Event) => {
+      console.log(event);
+    };
+    websocket.onmessage = (event: MessageEvent<any>) => {
+      console.log(event);
+      setMessages((messages) => {
+        messages.push({
+          key: "TBD",
+          type: MessageType.DEFAULT,
+          sender: {
+            id: localUserId,
+            name: localUsername,
+          },
+          message: event.data,
+        });
+        return [...messages];
+      });
+    };
+    setWebsocket(websocket);
+  }, []);
+
+  useEffect(() => {
+    chatWindow.current?.scrollTo({
+      top: chatWindow.current?.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages]);
+
   return (
     <div className={styles.wrapper}>
-      <div className={styles.messageWrapper}>
+      <div
+        className={styles.messageWrapper}
+        ref={chatWindow}
+      >
         {messages.map(({ message, type, sender, key }, index) => {
           const isLocalSender = localUserId === sender.id;
           return (
@@ -34,31 +70,55 @@ export const Chat: React.FC = () => {
 
       <div className={styles.inputWrapper}>
         <form
-          onSubmit={async (event: React.FormEvent<HTMLFormElement>) => {
+          onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
             event.preventDefault();
-            setIsLoading(true);
-            if (messageInput.current === null) {
-              return;
+            if (!messageInput.current) {
+              throw Error("missing message input ref");
             }
             const messageToSend = messageInput.current.value.trim();
             if (messageToSend.length <= 0) {
               return;
             }
-            await sendMessage({
-              key: "TBD",
-              type: MessageType.DEFAULT,
-              sender: {
-                id: localUserId,
-                name: localUsername,
-              },
-              message: messageToSend,
-            });
-            setIsLoading(false);
+            if (
+              websocket === undefined ||
+              websocket.readyState !== websocket.OPEN
+            ) {
+              alert("Not connected to server");
+              return;
+            }
+            websocket.send(
+              JSON.stringify({
+                key: "TBD",
+                type: MessageType.DEFAULT,
+                sender: {
+                  id: localUserId,
+                  name: localUsername,
+                },
+                message: messageToSend,
+              })
+            );
+            messageInput.current.value = "";
+            messageInput.current.dispatchEvent(
+              new Event("input", { bubbles: true, cancelable: true })
+            );
+            messageInput.current.focus();
           }}
         >
-          <input ref={messageInput} />
-          <button disabled={isLoading}>
-            {isLoading ? "loading..." : "send"}
+          <input
+            ref={messageInput}
+            onInput={(event: React.FormEvent<HTMLInputElement>) => {
+              if (!sendButton.current) {
+                throw Error("missing send button ref");
+              }
+              sendButton.current.disabled =
+                event.currentTarget.value.trim().length <= 0;
+            }}
+          />
+          <button
+            ref={sendButton}
+            disabled={true}
+          >
+            send
           </button>
         </form>
       </div>
