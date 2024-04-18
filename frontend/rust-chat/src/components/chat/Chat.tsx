@@ -15,19 +15,22 @@ export const Chat: React.FC = () => {
   const localUsername = "Edgar Allen Poe";
   return (
     <div className={styles.wrapper}>
-      {messages.map(({ message, type, sender, key }) => {
-        const isLocalSender = localUserId === sender.id;
-        return (
-          <div
-            className={cssClassConstructor([
-              styles.message,
-              isLocalSender ? styles.localSentMessage : "",
-            ])}
-          >
-            {message}
-          </div>
-        );
-      })}
+      <div className={styles.messageWrapper}>
+        {messages.map(({ message, type, sender, key }, index) => {
+          const isLocalSender = localUserId === sender.id;
+          return (
+            <div
+              key={`${index}-${key}`}
+              className={cssClassConstructor([
+                styles.message,
+                isLocalSender ? styles.localSentMessage : "",
+              ])}
+            >
+              {message}
+            </div>
+          );
+        })}
+      </div>
 
       <div className={styles.inputWrapper}>
         <form

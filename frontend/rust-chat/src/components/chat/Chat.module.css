@@ -1,8 +1,16 @@
 .wrapper {
+  max-width: 750px;
+}
+
+.messageWrapper {
   display: flex;
   flex-direction: column;
   gap: 1em;
   border: 1px solid;
+  overflow: auto;
+  max-height: 500px;
+  position: relative;
+  padding: 1em 0;
 }
 .message {
   background-color: blue;
@@ -11,6 +19,7 @@
   border-radius: 0.5em;
   padding: 1em;
 }
+
 .localSentMessage {
   margin-left: auto;
 }
