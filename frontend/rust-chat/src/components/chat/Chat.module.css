@@ -1,0 +1,28 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+  border: 1px solid;
+}
+.message {
+  background-color: blue;
+  color: white;
+  width: 250px;
+  border-radius: 0.5em;
+  padding: 1em;
+}
+.localSentMessage {
+  margin-left: auto;
+}
+.inputWrapper {
+  width: 100%;
+}
+.inputWrapper form {
+  display: flex;
+}
+.inputWrapper form input {
+  width: 100%;
+}
+.inputWrapper form button {
+  padding: 1em;
+}

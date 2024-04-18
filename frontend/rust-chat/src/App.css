@@ -1,0 +1,16 @@
+.app {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 100%;
+  grid-template-rows: auto 1fr auto;
+}
+
+header {
+  border: 1px solid salmon;
+}
+main {
+  border: 1px solid aqua;
+}
+footer {
+  border: 1px solid lemonchiffon;
+}
