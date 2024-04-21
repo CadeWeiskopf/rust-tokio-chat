@@ -1,17 +1,25 @@
-import React from "react";
+import React, { useContext } from "react";
 import "./App.css";
 import { Chat } from "./components/chat/Chat";
+import { AppContext, AppContextProvider } from "./App.context";
+import { Welcome } from "./components/welcome/Welcome";
 
 function App() {
+  const { localUser } = useContext(AppContext);
   return (
     <div className="app">
       <header>cadew.dev chat</header>
-      <main>
-        <Chat />
-      </main>
+      <main>{localUser === null ? <Welcome /> : <Chat />}</main>
       <footer>All Rights Reserved, Cade Weiskopf</footer>
     </div>
   );
 }
 
-export default App;
+const AppWrapper: React.FC = () => {
+  return (
+    <AppContextProvider>
+      <App />
+    </AppContextProvider>
+  );
+};
+export default AppWrapper;

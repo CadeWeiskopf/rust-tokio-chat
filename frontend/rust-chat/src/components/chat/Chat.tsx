@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { FAKE_MESSAGES, Message, MessageType } from "./Chat.model";
 import styles from "./Chat.module.css";
+import { AppContext } from "../../App.context";
 
 export const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>(FAKE_MESSAGES);
   const [websocket, setWebsocket] = useState<WebSocket>();
+  const { localUser } = useContext(AppContext);
   const messageInput = useRef<HTMLInputElement>(null);
   const chatWindow = useRef<HTMLDivElement>(null);
   const sendButton = useRef<HTMLButtonElement>(null);
