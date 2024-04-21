@@ -36,6 +36,9 @@ export const Chat: React.FC = () => {
       });
     };
     setWebsocket(websocket);
+    return () => {
+      websocket.close();
+    };
   }, []);
 
   useEffect(() => {
