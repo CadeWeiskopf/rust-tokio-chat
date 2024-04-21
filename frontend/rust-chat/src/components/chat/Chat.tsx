@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FAKE_MESSAGES, Message, MessageType } from "./Chat.model";
 import styles from "./Chat.module.css";
-import { sendMessage } from "../../api/messages";
 
 const cssClassConstructor = (classes: string[]): string => {
   return classes.join(" ").trim();
@@ -62,7 +61,8 @@ export const Chat: React.FC = () => {
                 isLocalSender ? styles.localSentMessage : "",
               ])}
             >
-              {message}
+              <h2>{sender.name}</h2>
+              {message.slice(1, -1)}
             </div>
           );
         })}

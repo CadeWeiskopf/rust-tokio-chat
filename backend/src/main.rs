@@ -48,6 +48,7 @@ async fn main() -> Result<(), Error> {
       // spawn async task to listen for client messages
       // let clients_map_clone = clients_map.clone();
       let msg_vec_clone = messages_vec.clone();
+      let clients_map_remove_clone = clients_map.clone();
       tokio::spawn(async move {
         let client_rx_stream_clone = client_rx_stream.clone();
         loop {
@@ -58,8 +59,9 @@ async fn main() -> Result<(), Error> {
               match msg.as_text() {
                 Some(msg_str) => {
                   match parse_json_message(msg_str) {
-                    Ok(msg_json) => {
-                      eprintln!("Parsed message json: {}", msg_json);
+                    Ok(mut msg_json) => {
+                      msg_json["key"] = Value::String(Uuid::new_v4().to_string());
+                      println!("Parsed message json: {}", msg_json);
                       let mut messages_vec_lock = msg_vec_clone.lock().await;
                       messages_vec_lock.push(msg_json);
                       println!("total messages = {}", messages_vec_lock.len());
@@ -81,7 +83,11 @@ async fn main() -> Result<(), Error> {
               eprintln!("Error receiving message: {}", err);
             },
             None => {
-              println!("{} disconnected", id);
+              let mut clients_map_remove_lock = clients_map_remove_clone.lock().await;
+              clients_map_remove_lock.remove(&id);
+              // clients_map_remove_lock.insert(id, client_tx_stream.clone());
+              println!("\n {} disconnected, \n Total Clients = {}\n", id, clients_map_remove_lock.len());
+              std::mem::drop(clients_map_remove_lock);
               break;
             }
           }
@@ -95,7 +101,7 @@ async fn main() -> Result<(), Error> {
   
   tokio::spawn(async move {
     loop {
-      tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+      tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
       let mut messages_vec_lock = messages_vec_clone.lock().await;
       let n = messages_vec_lock.len();
       for msg_json in messages_vec_lock.drain(0..n) {

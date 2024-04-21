@@ -1,10 +1,15 @@
 .wrapper {
   max-width: 750px;
 }
+.wrapper h2 {
+  margin-top: 0;
+  font-size: large;
+}
 
 .messageWrapper {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 100%;
+  grid-template-rows: auto 1fr;
   gap: 1em;
   border: 1px solid;
   overflow: auto;
