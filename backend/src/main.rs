@@ -1,28 +1,35 @@
 mod http_server;
 
-use futures_util::{stream::SplitSink, SinkExt, StreamExt};
+use futures_util::{stream::SplitSink, stream::SplitStream, SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio_websockets::{Error, Message, ServerBuilder};
+use tokio_websockets::{Error, Message, ServerBuilder, WebSocketStream};
 use uuid::Uuid;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use serde_json::Value;
 
+pub struct User {
+  tx_stream: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
+  rx_stream: Arc<Mutex<SplitStream<WebSocketStream<TcpStream>>>>,
+  name: String
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Error> {
   let listener = TcpListener::bind("127.0.0.1:8080").await?;
-  let clients: HashMap<Uuid, Arc<Mutex<SplitSink<tokio_websockets::WebSocketStream<TcpStream>, Message>>>> = HashMap::new();
+  let clients: HashMap<Uuid, Arc<Mutex<User>>> = HashMap::new();
   let clients_map = Arc::new(Mutex::new(clients));
   let messages_vec: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
   let messages_vec_clone = messages_vec.clone();
   let clients_map_clone = clients_map.clone();
-  let clients_map_clone2 = clients_map.clone();
+  let clients_map_tx_clone = clients_map.clone();
 
   tokio::spawn(async move {
     println!("Web socket server listening... {:?}", listener); 
     while let Ok((stream, _)) = listener.accept().await { 
       // server setup client stream
+      println!("got req ws");
       let ws_stream_result = ServerBuilder::new()
         .accept(stream)
         .await;
@@ -43,12 +50,17 @@ async fn main() -> Result<(), Error> {
       let client_tx_stream = Arc::new(Mutex::new(tx));
       
       let mut clients_map_lock = clients_map_clone.lock().await;
-      clients_map_lock.insert(id, client_tx_stream.clone());
+      println!("creating new user");
+      let new_user = User {
+        tx_stream: client_tx_stream.clone(),
+        rx_stream: client_rx_stream.clone(),
+        name: "tbd".to_string(),
+      };
+      clients_map_lock.insert(id, Arc::new(Mutex::new(new_user)));
       println!("\nNew connection to server {} \n Total Clients = {}\n", id, clients_map_lock.len());
       std::mem::drop(clients_map_lock);
       
       // spawn async task to listen for client messages
-      // let clients_map_clone = clients_map.clone();
       let msg_vec_clone = messages_vec.clone();
       let clients_map_remove_clone = clients_map.clone();
       tokio::spawn(async move {
@@ -87,7 +99,6 @@ async fn main() -> Result<(), Error> {
             None => {
               let mut clients_map_remove_lock = clients_map_remove_clone.lock().await;
               clients_map_remove_lock.remove(&id);
-              // clients_map_remove_lock.insert(id, client_tx_stream.clone());
               println!("\n {} disconnected, \n Total Clients = {}\n", id, clients_map_remove_lock.len());
               std::mem::drop(clients_map_remove_lock);
               break;
@@ -107,18 +118,20 @@ async fn main() -> Result<(), Error> {
       let mut messages_vec_lock = messages_vec_clone.lock().await;
       let n = messages_vec_lock.len();
       for msg_json in messages_vec_lock.drain(0..n) {
-        let clients_map_lock = clients_map_clone2.lock().await;
-        for (id, client_stream) in clients_map_lock.iter() {
+        let clients_map_lock = clients_map_tx_clone.lock().await;
+        for (id, user) in clients_map_lock.iter() {
           println!("send {}", id);
-          let mut c = client_stream.lock().await;
-          let send_msg_result = c.send(Message::text(msg_json["message"].to_string())).await;
+          let mut u = user.lock().await;
+          let mut u_tx_stream = u.tx_stream.lock().await;
+          let send_msg_result = u_tx_stream.send(Message::text(msg_json.to_string())).await;
           match send_msg_result {
             Ok(()) => {},
             Err(err) => {
               eprintln!("err sending message to client {}: {}", id, err);
             }
           }
-          std::mem::drop(c);
+          std::mem::drop(u_tx_stream);
+          std::mem::drop(u);
         }
         std::mem::drop(clients_map_lock);
       }
