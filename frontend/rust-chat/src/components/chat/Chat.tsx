@@ -22,13 +22,10 @@ export const Chat: React.FC = () => {
     };
     websocket.onmessage = (event: MessageEvent<any>) => {
       console.log(event);
+      // TODO: validate this data
+      const message = JSON.parse(event.data);
       setMessages((messages) => {
-        messages.push({
-          key: "TBD",
-          type: MessageType.DEFAULT,
-          sender: localUser,
-          message: event.data,
-        });
+        messages.push(message);
         return [...messages];
       });
     };
@@ -93,7 +90,7 @@ export const Chat: React.FC = () => {
               ])}
             >
               <h2>{sender.name}</h2>
-              {message.slice(1, -1)}
+              {message}
             </div>
           );
         })}
