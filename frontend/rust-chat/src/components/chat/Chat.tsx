@@ -2,10 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { FAKE_MESSAGES, Message, MessageType } from "./Chat.model";
 import styles from "./Chat.module.css";
 
-const cssClassConstructor = (classes: string[]): string => {
-  return classes.join(" ").trim();
-};
-
 export const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>(FAKE_MESSAGES);
   const [websocket, setWebsocket] = useState<WebSocket>();
@@ -15,6 +11,7 @@ export const Chat: React.FC = () => {
   const localUserId = "c";
   const localUsername = "Edgar Allen Poe";
 
+  // handle websocket connection
   useEffect(() => {
     const websocket = new WebSocket("ws://127.0.0.1:8080");
     websocket.onopen = (event: Event) => {
@@ -41,6 +38,7 @@ export const Chat: React.FC = () => {
     };
   }, []);
 
+  // when message received scroll the chat window down
   useEffect(() => {
     chatWindow.current?.scrollTo({
       top: chatWindow.current?.scrollHeight,
@@ -48,12 +46,45 @@ export const Chat: React.FC = () => {
     });
   }, [messages]);
 
+  // function on chat form submit to send the message
+  const handleSendMessage = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!messageInput.current) {
+      throw Error("missing message input ref");
+    }
+    const messageToSend = messageInput.current.value.trim();
+    if (messageToSend.length <= 0) {
+      return;
+    }
+    if (websocket === undefined || websocket.readyState !== websocket.OPEN) {
+      alert("Not connected to server");
+      return;
+    }
+    websocket.send(
+      JSON.stringify({
+        key: "TBD",
+        type: MessageType.DEFAULT,
+        sender: {
+          id: localUserId,
+          name: localUsername,
+        },
+        message: messageToSend,
+      })
+    );
+    messageInput.current.value = "";
+    messageInput.current.dispatchEvent(
+      new Event("input", { bubbles: true, cancelable: true })
+    );
+    messageInput.current.focus();
+  };
+
   return (
     <div className={styles.wrapper}>
       <div
         className={styles.messageWrapper}
         ref={chatWindow}
       >
+        {/* render the messages */}
         {messages.map(({ message, type, sender, key }, index) => {
           const isLocalSender = localUserId === sender.id;
           return (
@@ -71,42 +102,9 @@ export const Chat: React.FC = () => {
         })}
       </div>
 
+      {/* chat message input */}
       <div className={styles.inputWrapper}>
-        <form
-          onSubmit={(event: React.FormEvent<HTMLFormElement>) => {
-            event.preventDefault();
-            if (!messageInput.current) {
-              throw Error("missing message input ref");
-            }
-            const messageToSend = messageInput.current.value.trim();
-            if (messageToSend.length <= 0) {
-              return;
-            }
-            if (
-              websocket === undefined ||
-              websocket.readyState !== websocket.OPEN
-            ) {
-              alert("Not connected to server");
-              return;
-            }
-            websocket.send(
-              JSON.stringify({
-                key: "TBD",
-                type: MessageType.DEFAULT,
-                sender: {
-                  id: localUserId,
-                  name: localUsername,
-                },
-                message: messageToSend,
-              })
-            );
-            messageInput.current.value = "";
-            messageInput.current.dispatchEvent(
-              new Event("input", { bubbles: true, cancelable: true })
-            );
-            messageInput.current.focus();
-          }}
-        >
+        <form onSubmit={handleSendMessage}>
           <input
             ref={messageInput}
             onInput={(event: React.FormEvent<HTMLInputElement>) => {
@@ -128,3 +126,12 @@ export const Chat: React.FC = () => {
     </div>
   );
 };
+
+/**
+ * TODO: move this somewhere
+ * general utility function for generating class names
+ * i just find using this is more legibile in jsx templates
+ */
+function cssClassConstructor(classes: string[]): string {
+  return classes.join(" ").trim();
+}
