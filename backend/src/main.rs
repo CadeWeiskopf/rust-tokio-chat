@@ -1,4 +1,5 @@
 use futures_util::{stream::SplitSink, SinkExt, StreamExt};
+use tokio::io::AsyncReadExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_websockets::{Error, Message, ServerBuilder};
 use uuid::Uuid;
@@ -121,6 +122,20 @@ async fn main() -> Result<(), Error> {
         std::mem::drop(clients_map_lock);
       }
     }  
+  });
+
+
+  let http_listener = TcpListener::bind("127.0.0.1:8081").await?;
+  tokio::spawn(async move {
+    println!("HTTP server listening... {:?}", http_listener);
+    while let Ok((mut stream, _)) = http_listener.accept().await {
+      println!("stream->{:?}", stream);
+      let mut buffer = [0; 1024];
+      if let Ok(bytes_read) = stream.read(&mut buffer).await {
+        let request = String::from_utf8_lossy(&buffer[..bytes_read]);
+        println!("Received HTTP request:\n{}", request);
+      }
+    } 
   });
 
   loop {
