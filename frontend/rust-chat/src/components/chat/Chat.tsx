@@ -6,12 +6,13 @@ import { AppContext } from "../../App.context";
 export const Chat: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>(FAKE_MESSAGES);
   const [websocket, setWebsocket] = useState<WebSocket>();
-  const { localUser } = useContext(AppContext);
   const messageInput = useRef<HTMLInputElement>(null);
   const chatWindow = useRef<HTMLDivElement>(null);
   const sendButton = useRef<HTMLButtonElement>(null);
-  const localUserId = "c";
-  const localUsername = "Edgar Allen Poe";
+  const { localUser } = useContext(AppContext);
+  if (localUser === null) {
+    throw Error("user cannot be null to use chat");
+  }
 
   // handle websocket connection
   useEffect(() => {
@@ -25,10 +26,7 @@ export const Chat: React.FC = () => {
         messages.push({
           key: "TBD",
           type: MessageType.DEFAULT,
-          sender: {
-            id: localUserId,
-            name: localUsername,
-          },
+          sender: localUser,
           message: event.data,
         });
         return [...messages];
@@ -66,10 +64,7 @@ export const Chat: React.FC = () => {
       JSON.stringify({
         key: "TBD",
         type: MessageType.DEFAULT,
-        sender: {
-          id: localUserId,
-          name: localUsername,
-        },
+        sender: localUser,
         message: messageToSend,
       })
     );
@@ -88,7 +83,7 @@ export const Chat: React.FC = () => {
       >
         {/* render the messages */}
         {messages.map(({ message, type, sender, key }, index) => {
-          const isLocalSender = localUserId === sender.id;
+          const isLocalSender = localUser.id === sender.id;
           return (
             <div
               key={`${index}-${key}`}
