@@ -7,7 +7,8 @@ use tokio_websockets::{Message, WebSocketStream};
 pub struct User {
   pub tx_stream: Arc<Mutex<SplitSink<WebSocketStream<TcpStream>, Message>>>,
   pub rx_stream: Arc<Mutex<SplitStream<WebSocketStream<TcpStream>>>>,
-  pub name: String
+  pub name: String,
+  pub name_key: String
 }
 
 pub fn parse_json_message(data: &str) -> serde_json::Result<serde_json::Value> {
