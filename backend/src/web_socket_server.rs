@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use http::header::HOST;
 use tokio::sync::Mutex;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
 use tokio_websockets::{Error, Message, ServerBuilder};
+use tokio::io::AsyncReadExt;
 use uuid::Uuid;
 use serde_json::Value;
 use crate::data::{User, parse_json_message};
@@ -38,6 +40,54 @@ async fn client_connection_handler(
   tokio::spawn(async move {
     println!("Web socket server listening... {:?}", listener); 
     while let Ok((stream, _addr)) = listener.accept().await {
+      let mut buffer = [0; 1024];
+      if let Ok(bytes_read) = stream.peek(&mut buffer).await {
+        let request = String::from_utf8_lossy(&buffer[..bytes_read]);
+        println!("req: {}", request);
+        let mut headers = [httparse::EMPTY_HEADER; 16];
+        let mut req = httparse::Request::new(&mut headers);
+        match req.parse(request.as_bytes()) {
+            Ok(httparse::Status::Complete(req_body_start)) => {
+              let method = match req.method {
+                Some(method) => method,
+                None => {
+                  break;
+                }
+              };
+              let path = match req.path {
+                Some(path) => path,
+                None => {
+                  break;
+                }
+              };
+              let mut host_value = None;
+              for h in req.headers {
+                if h.name == HOST {
+                  host_value = Some(h.value);
+                  break;
+                }
+              }
+              match host_value {
+                Some(host) => {
+                  // register client from url params
+                  let host_name = String::from_utf8_lossy(host);
+                  // TODO: registration
+                  println!("{} {}{}", method, host_name, path);
+                },
+                None => {
+                  eprintln!("no Host header");
+                  continue;
+                }
+              }
+            }
+            Ok(httparse::Status::Partial) => {
+              println!("Incomplete request, need more data in ws connect");
+            }
+            Err(err) => {
+              eprintln!("Error parsing request on ws connect: {}", err);
+            }
+        }
+      }
       // server setup client stream
       let ws_stream_result = ServerBuilder::new()
         .accept(stream)
@@ -83,86 +133,11 @@ async fn client_connection_handler(
                 Some(msg_str) => {
                   match parse_json_message(msg_str) {
                     Ok(mut msg_json) => {
-                      let init_obj = msg_json.get("init");
-                      match init_obj {
-                          Some(init_data) => {
-                            println!("do registration process {:?}", init_data);
-                            match init_data {
-                              Value::Object(init_data_obj) => {
-                                let username_registration_id_opt = init_data_obj.get("id");
-                                let username_registration_id = match username_registration_id_opt {
-                                  Some(username_registration_id) => {
-                                    match username_registration_id {
-                                      serde_json::Value::String(username_registration_id) => {
-                                        username_registration_id
-                                      }, 
-                                      _ => {
-                                        eprintln!("bad data type for username registration id");
-                                        continue;
-                                      }
-                                    };
-                                    username_registration_id
-                                  },
-                                  None => {
-                                    eprintln!("no username registration id in init data obj");
-                                    continue;
-                                  }
-                                };
-                                let username = init_data_obj.get("username");
-                                match username {
-                                  Some(username) => {
-                                    match username {
-                                      Value::String(username) => {
-                                        let username_lowercase = username.to_lowercase();
-                                        let username_key = username_lowercase.trim();
-                                        let username_len = username_key.len();
-                                        if username_len <= 0 {
-                                          eprintln!("username is not acceptable len");
-                                          continue;
-                                        }
-                                        let mut client_usernames_lock = clients_usernames_map_clone.lock().await;
-                                        let registered_username_id = client_usernames_lock.get(username_key);
-                                        match registered_username_id {
-                                          Some(id_to_check_against) => {
-                                            if format!("\"{}\"", id_to_check_against) == username_registration_id.to_string() {
-                                              println!("finish registration for user {} {}=={}", username, id_to_check_against, username_registration_id);
-                                              client_usernames_lock.insert((&username_key).to_string(), id);
-                                              println!("clients usernames : {:?}", client_usernames_lock);
-                                            } else {
-                                              eprintln!("username provided id does not match provided: {}, want: {}", username_registration_id, id_to_check_against);
-                                            }
-                                          },
-                                          None => {
-                                            eprintln!("no registration registration for user {}", username);
-                                          }
-                                        }
-                                        std::mem::drop(client_usernames_lock);
-                                      }, 
-                                      _ => {
-                                        eprintln!("unexpected username type");
-                                        break;
-                                      }
-                                    }
-                                  },
-                                  None => {
-                                    eprintln!("username not in init data obj");
-                                    break;
-                                  }
-                                }
-                              },
-                              _ => {
-                                eprintln!("init data not expected type");
-                              }
-                            }
-                          },
-                          None => {
-                            // send message to chat
-                            msg_json["key"] = Value::String(Uuid::new_v4().to_string());
-                            let mut messages_vec_lock = msg_vec_clone.lock().await;
-                            messages_vec_lock.push(msg_json);
-                            std::mem::drop(messages_vec_lock);
-                          },
-                      }
+                      // send message to chat
+                      msg_json["key"] = Value::String(Uuid::new_v4().to_string());
+                      let mut messages_vec_lock = msg_vec_clone.lock().await;
+                      messages_vec_lock.push(msg_json);
+                      std::mem::drop(messages_vec_lock);
                     },
                     Err(err) => {
                       eprintln!("Error parsing message as json: {} \n=====!!!\n", err);
