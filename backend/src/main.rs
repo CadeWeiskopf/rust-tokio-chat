@@ -13,10 +13,12 @@ use crate::data::User;
 async fn main() -> Result<(), Error> {
   let clients: HashMap<Uuid, Arc<Mutex<User>>> = HashMap::new();
   let clients_map = Arc::new(Mutex::new(clients));
+  let clients_usernames: HashMap<String, Uuid> = HashMap::new();
+  let clients_username_map = Arc::new(Mutex::new(clients_usernames));
 
   web_socket_server::start_web_socket_server(clients_map).await?;
 
-  http_server::start_server().await?;
+  http_server::start_server(clients_username_map).await?;
 
   loop {
     tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
