@@ -8,6 +8,7 @@ use tokio_websockets::{Error, Message, ServerBuilder};
 use tokio::io::AsyncReadExt;
 use uuid::Uuid;
 use serde_json::Value;
+use url::Url;
 use crate::data::{User, parse_json_message};
 
 pub async fn start_web_socket_server(
@@ -72,6 +73,50 @@ async fn client_connection_handler(
                   // register client from url params
                   let host_name = String::from_utf8_lossy(host);
                   // TODO: registration
+                  let parsed_url = Url::parse(&format!("ws://{}{}", host_name, path));
+                  match parsed_url {
+                    Ok(url_data) => {
+                      println!("url_data={:?}", url_data);
+                      let mut username = None;
+                      let mut username_id = None;
+                      for (key, value) in url_data.query_pairs() {
+                        if key == "username" {
+                          username = Some(value);
+                        } else if key == "id" {
+                          username_id = Some(value);
+                        }
+                      }
+                      if let (
+                        Some(username_value), 
+                        Some(username_id_value)
+                      ) = (
+                        username, 
+                        username_id
+                      ) {
+                        println!("register: {} {}", username_value, username_id_value);
+                        let clients_usersname_map_lock = 
+                          clients_usernames_map.lock().await;
+                        if let (
+                          Some(usernames_registration_id)
+                        ) = clients_usersname_map_lock.get(&username_value.to_lowercase()) {
+                          println!("user in map : {}", usernames_registration_id);
+                          if username_id_value != usernames_registration_id.to_string() {
+                            eprintln!("id does not match the usernames_registration_id");
+                            continue;
+                          }
+                        } else {
+                          eprintln!("could not find in usernames map");
+                          continue;
+                        }
+                      } else {
+                        eprintln!("connection does not have the necessary url query params");
+                        continue;
+                      }
+                    },
+                    Err(err) => {
+                      eprintln!("Error parsing host_name {}", err);
+                    }
+                  }
                   println!("{} {}{}", method, host_name, path);
                 },
                 None => {
