@@ -4,7 +4,7 @@ use http::header::CONTENT_LENGTH;
 use tokio::sync::Mutex;
 use tokio::net::TcpListener;
 use tokio_websockets::Error;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use uuid::Uuid;
 
 pub async fn start_server(clients_username_map: Arc<Mutex<HashMap<String, Uuid>>>) -> Result<(), Error> {
@@ -52,6 +52,17 @@ pub async fn start_server(clients_username_map: Arc<Mutex<HashMap<String, Uuid>>
                                 let username_id = Uuid::new_v4();
                                 println!("do regirstation for {} ({}:{})", username, username_key, username_id);
                                 clients_username_map_lock.insert(username_key, username_id);
+                                let response_data = username_id.to_string();
+                                let response_bytes = response_data.as_bytes();
+                                let response = format!(
+                                  "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", 
+                                  response_bytes.len(), 
+                                  response_data
+                                );
+                                // let response = b"HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nHello, World!";
+                                if let Err(err) = stream.write_all(response.as_bytes()).await {
+                                  eprintln!("Error sending response for id registration: {}", err);
+                                }
                               },
                               Some(_) => {
                                 eprintln!("username already in use");
