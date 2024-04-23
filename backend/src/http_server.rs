@@ -54,14 +54,23 @@ pub async fn start_server(clients_username_map: Arc<Mutex<HashMap<String, Uuid>>
                                 clients_username_map_lock.insert(username_key, username_id);
                                 let response_data = username_id.to_string();
                                 let response_bytes = response_data.as_bytes();
-                                let response = format!(
-                                  "HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n{}", 
-                                  response_bytes.len(), 
-                                  response_data
-                                );
-                                // let response = b"HTTP/1.1 200 OK\r\nContent-Length: 13\r\n\r\nHello, World!";
-                                if let Err(err) = stream.write_all(response.as_bytes()).await {
-                                  eprintln!("Error sending response for id registration: {}", err);
+                                let response_result = http::Response::builder()
+                                  .status(http::status::StatusCode::OK)
+                                  .header("Content-Type", "text/html")
+                                  .header("Content-Length", response_bytes.len())
+                                  .body(response_data.clone());
+                                match response_result {
+                                  Ok(response) => {
+                                    let serialized_response = serialize_response(response.clone());
+                                    if let Err(err) = stream.write_all(&serialized_response).await {
+                                      eprintln!("Error sending response for id registration: {}", err);
+                                    } else {
+                                      println!("sent response {:?}", response);
+                                    }
+                                  },
+                                  Err(err) => {
+                                    eprintln!("error building response get id {}", err);
+                                  }
                                 }
                               },
                               Some(_) => {
@@ -91,4 +100,15 @@ pub async fn start_server(clients_username_map: Arc<Mutex<HashMap<String, Uuid>>
     } 
   });
   Ok::<_, Error>(())
+}
+
+fn serialize_response(response: http::Response<String>) -> Vec<u8> {
+  let mut response_str = format!("{:?} {}\r\n", response.version(), response.status());
+  for (name, value) in response.headers() {
+    if let Ok(value_str) = value.to_str() {
+      response_str += &format!("{}: {}\r\n", name, value_str);
+    }
+  }
+  response_str += &format!("\r\n{}", response.body());
+  response_str.as_bytes().to_vec()
 }
