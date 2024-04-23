@@ -5,7 +5,6 @@ use tokio::sync::Mutex;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
 use tokio_websockets::{Error, Message, ServerBuilder};
-use tokio::io::AsyncReadExt;
 use uuid::Uuid;
 use serde_json::Value;
 use url::Url;
@@ -48,17 +47,12 @@ async fn client_connection_handler(
         let mut headers = [httparse::EMPTY_HEADER; 16];
         let mut req = httparse::Request::new(&mut headers);
         match req.parse(request.as_bytes()) {
-            Ok(httparse::Status::Complete(req_body_start)) => {
-              let method = match req.method {
-                Some(method) => method,
-                None => {
-                  break;
-                }
-              };
+            Ok(httparse::Status::Complete(_req_body_start)) => {
               let path = match req.path {
                 Some(path) => path,
                 None => {
-                  break;
+                  eprintln!("no path for ws");
+                  continue;
                 }
               };
               let mut host_value = None;
@@ -96,9 +90,7 @@ async fn client_connection_handler(
                         println!("register: {} {}", username_value, username_id_value);
                         let clients_usersname_map_lock = 
                           clients_usernames_map.lock().await;
-                        if let (
-                          Some(usernames_registration_id)
-                        ) = clients_usersname_map_lock.get(&username_value.to_lowercase()) {
+                        if let Some(usernames_registration_id) = clients_usersname_map_lock.get(&username_value.to_lowercase()) {
                           println!("user in map : {}", usernames_registration_id);
                           if username_id_value != usernames_registration_id.to_string() {
                             eprintln!("id does not match the usernames_registration_id");
@@ -117,7 +109,6 @@ async fn client_connection_handler(
                       eprintln!("Error parsing host_name {}", err);
                     }
                   }
-                  println!("{} {}{}", method, host_name, path);
                 },
                 None => {
                   eprintln!("no Host header");
@@ -143,7 +134,7 @@ async fn client_connection_handler(
         },
         Err(err) => {
           eprintln!("Failed to accept WebSocket connection: {}", err);
-          break
+          continue;
         }
       };
       let (tx, rx) = ws_stream.split();
@@ -167,7 +158,6 @@ async fn client_connection_handler(
       // push client's messages to messages_vec
       let msg_vec_clone = messages_vec.clone();
       let clients_map_remove_clone = clients_map.clone();
-      let clients_usernames_map_clone = clients_usernames_map.clone();
       tokio::spawn(async move {
         let client_rx_stream_clone = client_rx_stream.clone();
         loop {
