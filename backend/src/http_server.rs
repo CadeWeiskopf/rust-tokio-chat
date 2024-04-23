@@ -15,7 +15,7 @@ pub async fn start_server(clients_username_map: Arc<Mutex<HashMap<String, Uuid>>
       let mut buffer = [0; 1024];
       if let Ok(bytes_read) = stream.read(&mut buffer).await {
         let request = String::from_utf8_lossy(&buffer[..bytes_read]);
-        println!("req: {}", request);
+        println!("====\nreq: {}", request);
         let mut headers = [httparse::EMPTY_HEADER; 16];
         let mut req = httparse::Request::new(&mut headers);
         match req.parse(request.as_bytes()) {
@@ -39,7 +39,6 @@ pub async fn start_server(clients_username_map: Arc<Mutex<HashMap<String, Uuid>>
                       let num: usize = str_value.trim().parse().expect("Failed to parse usize");
                       let body_bytes = &request.as_bytes()[req_body_start..req_body_start + num];
                       if let Ok(body) = serde_json::from_slice::<serde_json::Value>(body_bytes) {
-                        println!("body={}", body);
                         match &body["username"] {
                           serde_json::Value::String(username) => {
                             if username.len() <= 0 {
@@ -96,6 +95,7 @@ pub async fn start_server(clients_username_map: Arc<Mutex<HashMap<String, Uuid>>
               eprintln!("Error parsing request: {}", err);
             }
         }
+        println!("=====\n");
       }
     } 
   });
