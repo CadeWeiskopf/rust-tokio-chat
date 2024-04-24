@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use http::header::CONTENT_LENGTH;
+use http::header::{ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_LENGTH, CONTENT_TYPE};
 use tokio::sync::Mutex;
 use tokio::net::TcpListener;
 use tokio_websockets::Error;
@@ -55,8 +55,9 @@ pub async fn start_server(clients_username_map: Arc<Mutex<HashMap<String, Uuid>>
                                 let response_bytes = response_data.as_bytes();
                                 let response_result = http::Response::builder()
                                   .status(http::status::StatusCode::OK)
-                                  .header("Content-Type", "text/html")
-                                  .header("Content-Length", response_bytes.len())
+                                  .header(CONTENT_TYPE, "text/html")
+                                  .header(CONTENT_LENGTH, response_bytes.len())
+                                  .header(ACCESS_CONTROL_ALLOW_ORIGIN, "http://127.0.0.1:3000")
                                   .body(response_data.clone());
                                 match response_result {
                                   Ok(response) => {

@@ -16,11 +16,17 @@ export const Welcome: React.FC = () => {
       alert("username not acceptable");
       return;
     }
-    // TODO: get from backend
-    const id = window.self.crypto.randomUUID();
-    if (!id) {
-      throw Error("randomUUID not available");
+    const response = await fetch(`http://127.0.0.1:8081/id`, {
+      method: "POST",
+      body: JSON.stringify({
+        username: inputUsernameRef.current.value,
+      }),
+    });
+    if (!response.ok) {
+      throw Error("response not ok");
     }
+    const id = await response.text();
+    console.log("data=", id);
     setLocalUser({
       id,
       name: inputUsernameRef.current.value,

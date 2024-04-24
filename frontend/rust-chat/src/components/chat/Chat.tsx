@@ -16,7 +16,9 @@ export const Chat: React.FC = () => {
 
   // handle websocket connection
   useEffect(() => {
-    const websocket = new WebSocket("ws://127.0.0.1:8080");
+    const websocket = new WebSocket(
+      `ws://127.0.0.1:8080?username=${localUser.name}&id=${localUser.id}`
+    );
     websocket.onopen = (event: Event) => {
       console.log(event);
     };
