@@ -18,10 +18,44 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
+name = "async-stdin"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1ff8b5d9b5ec29e0f49583ba71847b8c8888b67a8510133048a380903aa6822"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
+name = "async-throttle"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c99532de164435a0b91279e715bff4fa0d164643b409a67761907ffc210ee8f"
+dependencies = [
+ "backoff",
+ "dashmap",
+ "tokio",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1fdabc7756949593fe60f30ec81974b613357de856987752631dea1e3394c80"
+
+[[package]]
+name = "backoff"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b62ddb9cb1ec0a098ad4bbf9344d0713fa193ae1a80af55febcff2627b6a00c1"
+dependencies = [
+ "futures-core",
+ "getrandom",
+ "instant",
+ "pin-project-lite",
+ "rand",
+ "tokio",
+]
 
 [[package]]
 name = "backtrace"
@@ -73,6 +107,34 @@ name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
+
+[[package]]
+name = "crossbeam-queue"
+version = "0.3.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "df0346b5d5e76ac2fe4e327c5fd1118d6be7c51dfb18f9b7922923f287471e35"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.8.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "248e3bacc7dc6baa3b21e405ee045c3047101a49145e7e9eca583ab4c2ca5345"
+
+[[package]]
+name = "dashmap"
+version = "5.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "978747c1d849a7d2ee5e8adc0159961c48fb7e5db2f06af6723b80123bb53856"
+dependencies = [
+ "cfg-if",
+ "hashbrown",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core",
+]
 
 [[package]]
 name = "fastrand"
@@ -172,6 +234,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4271d37baee1b8c7e4b708028c57d816cf9d2434acb33a549475f78c181f6253"
 
 [[package]]
+name = "hashbrown"
+version = "0.14.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
+
+[[package]]
 name = "hermit-abi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -202,6 +270,15 @@ checksum = "634d9b1461af396cad843f47fdba5597a4f9e6ddd4bfb6ff5d85028c25cb12f6"
 dependencies = [
  "unicode-bidi",
  "unicode-normalization",
+]
+
+[[package]]
+name = "instant"
+version = "0.1.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a5bbe824c507c5da5956355e86a746d82e0e1464f65d862cc5e71da70e94b2c"
+dependencies = [
+ "cfg-if",
 ]
 
 [[package]]
@@ -434,6 +511,7 @@ dependencies = [
  "httparse",
  "serde_json",
  "tokio",
+ "tokio-utils",
  "tokio-websockets",
  "url",
  "uuid",
@@ -486,6 +564,15 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "shutdown-async"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2799e69bde7e68bedd86c6d94bffa783219114f1f31435ddda61f4aeba348ff"
+dependencies = [
+ "tokio",
 ]
 
 [[package]]
@@ -593,6 +680,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-utils"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de75f75f464153a50fe48b9675360e3cf2ae1d7d81f9751363bd2ee4888f5ce8"
+dependencies = [
+ "async-stdin",
+ "async-throttle",
+ "shutdown-async",
+ "tub",
+]
+
+[[package]]
 name = "tokio-websockets"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -627,6 +726,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c06d3da6113f116aaee68e4d601191614c9053067f9ab7f6edbcb161237daa54"
 dependencies = [
  "once_cell",
+]
+
+[[package]]
+name = "tub"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6bca43faba247bc76eb1d6c1b8b561e4a1c5bdd427cc3d7a007faabea75c683a"
+dependencies = [
+ "crossbeam-queue",
+ "tokio",
 ]
 
 [[package]]

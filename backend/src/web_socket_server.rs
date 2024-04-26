@@ -162,46 +162,45 @@ async fn client_connection_handler(
         // push client's messages to messages_vec
         let msg_vec_clone = messages_vec.clone();
         let clients_map_remove_clone = clients_map.clone();
+        let rate_limiter = Arc::new(tokio_utils::RateLimiter::new(std::time::Duration::from_millis(500)));     
         tokio::spawn(async move {
           let client_rx_stream_clone = client_rx_stream.clone();
           loop {
             let mut client_rx_lock = client_rx_stream_clone.lock().await;
-            match client_rx_lock.next().await {
-              Some(Ok(msg)) => {
-                match msg.as_text() {
-                  Some(msg_str) => {
-                    match parse_json_message(msg_str) {
-                      Ok(mut msg_json) => {
-                        // send message to chat
-                        msg_json["key"] = Value::String(Uuid::new_v4().to_string());
-                        let mut messages_vec_lock = msg_vec_clone.lock().await;
-                        messages_vec_lock.push(msg_json);
-                        std::mem::drop(messages_vec_lock);
-                      },
-                      Err(err) => {
-                        eprintln!("Error parsing message as json: {} \n=====!!!\n", err);
-                      }
-                    }   
-                  },
-                  None => {
-                    eprintln!("None message as text, likely disconnecting \n=====\n");
+            rate_limiter.throttle(|| async {
+              match client_rx_lock.next().await {
+                Some(Ok(msg)) => {
+                  match msg.as_text() {
+                    Some(msg_str) => {
+                      match parse_json_message(msg_str) {
+                        Ok(mut msg_json) => {
+                          // send message to chat
+                          msg_json["key"] = Value::String(Uuid::new_v4().to_string());
+                          let mut messages_vec_lock = msg_vec_clone.lock().await;
+                          messages_vec_lock.push(msg_json);
+                          std::mem::drop(messages_vec_lock);
+                        },
+                        Err(err) => {
+                          eprintln!("Error parsing message as json: {} \n=====!!!\n", err);
+                        }
+                      }   
+                    },
+                    None => {
+                      let mut clients_map_remove_lock = clients_map_remove_clone.lock().await;
+                      clients_map_remove_lock.remove(&id);
+                      println!("\n {} disconnected, \n Total Clients = {}\n=====\n", id, clients_map_remove_lock.len());
+                      std::mem::drop(clients_map_remove_lock);
+                    }
                   }
-                }
-                let client_tx_lock = client_tx_stream.lock().await;
-                std::mem::drop(client_tx_lock);
-              },
-              Some(Err(err)) => {
-                eprintln!("Error receiving message: {} \n=====!!!\n", err);
-              },
-              None => {
-                let mut clients_map_remove_lock = clients_map_remove_clone.lock().await;
-                clients_map_remove_lock.remove(&id);
-                println!("\n {} disconnected, \n Total Clients = {}\n=====\n", id, clients_map_remove_lock.len());
-                std::mem::drop(clients_map_remove_lock);
-                break;
+                },
+                Some(Err(err)) => {
+                  eprintln!("Error receiving message: {} \n=====!!!\n", err);
+                },
+                None => {}
               }
-            }
-            std::mem::drop(client_rx_lock);
+              std::mem::drop(client_rx_lock);
+            }).await;
+            
           }
         });
       } else {

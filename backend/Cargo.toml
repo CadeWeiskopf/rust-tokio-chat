@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1.37.0", features = ["full"] }
 tokio-websockets = { version = "0.8.2", features = ["client", "server", "fastrand", "openssl"] }
+tokio-utils = "0.1.2"
 http = "1.1.0"
 futures-util = { version = "0.3.30", features = ["sink"] }
 uuid = { version = "1.8.0", features = ["v4", "fast-rng", "macro-diagnostics"] }
