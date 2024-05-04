@@ -195,6 +195,11 @@ async fn client_connection_handler(
                 },
                 Some(Err(err)) => {
                   eprintln!("Error receiving message: {} \n=====!!!\n", err);
+                  let mut clients_map_remove_lock = clients_map_remove_clone.lock().await;
+                  clients_map_remove_lock.remove(&id);
+                  println!("\n {} disconnected, \n Total Clients = {}\n=====\n", id, clients_map_remove_lock.len());
+                  std::mem::drop(clients_map_remove_lock);
+                  return;
                 },
                 None => {}
               }

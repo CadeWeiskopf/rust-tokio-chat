@@ -1,10 +1,10 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
-import { FAKE_MESSAGES, Message, MessageType } from "./Chat.model";
+import { Message, MessageType, getStyle } from "./Chat.model";
 import styles from "./Chat.module.css";
 import { AppContext } from "../../App.context";
 
 export const Chat: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>(FAKE_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [websocket, setWebsocket] = useState<WebSocket>();
   const messageInput = useRef<HTMLInputElement>(null);
   const chatWindow = useRef<HTMLDivElement>(null);
@@ -62,7 +62,6 @@ export const Chat: React.FC = () => {
     websocket.send(
       JSON.stringify({
         key: "TBD",
-        type: MessageType.DEFAULT,
         sender: localUser,
         message: messageToSend,
       })
@@ -81,18 +80,16 @@ export const Chat: React.FC = () => {
         ref={chatWindow}
       >
         {/* render the messages */}
-        {messages.map(({ message, type, sender, key }, index) => {
-          const isLocalSender = localUser.id === sender.id;
+        {messages.map((message, index) => {
           return (
-            <div
-              key={`${index}-${key}`}
-              className={cssClassConstructor([
-                styles.message,
-                isLocalSender ? styles.localSentMessage : "",
-              ])}
-            >
-              <h2>{sender.name}</h2>
-              {message}
+            <div className={styles.messageBorder}>
+              <div
+                key={`${index}-${message.key}`}
+                className={getStyle(message, localUser)}
+              >
+                <h2>{message.sender.name}</h2>
+                {message.message}
+              </div>
             </div>
           );
         })}
@@ -122,12 +119,3 @@ export const Chat: React.FC = () => {
     </div>
   );
 };
-
-/**
- * TODO: move this somewhere
- * general utility function for generating class names
- * i just find using this is more legibile in jsx templates
- */
-function cssClassConstructor(classes: string[]): string {
-  return classes.join(" ").trim();
-}

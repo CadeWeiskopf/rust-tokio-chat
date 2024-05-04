@@ -13,18 +13,38 @@
   gap: 1em;
   border: 1px solid;
   overflow: auto;
+  min-height: 500px;
   max-height: 500px;
   position: relative;
   padding: 1em 0;
 }
 .message {
-  background-color: blue;
-  color: white;
   width: 250px;
-  border-radius: 0.5em;
   padding: 1em;
+  border-top-right-radius: 8px;
+  border-bottom-left-radius: 8px;
+  position: relative;
+}
+.message::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 100%;
+  border: 2px solid red; /* Adjust border properties as needed */
+  animation: pulse 1.5s infinite alternate; /* Adjust animation duration as needed */
+  width: 100%;
 }
 
+@keyframes pulse {
+  0% {
+    transform: rotateZ(0.5deg);
+  }
+  100% {
+    transform: rotateZ(-0.5deg);
+  }
+}
 .localSentMessage {
   margin-left: auto;
 }

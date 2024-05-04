@@ -1,5 +1,28 @@
+import { TUser } from "../../App.context";
+import styles from "./Chat.module.css";
+
 export enum MessageType {
-  DEFAULT = "default",
+  DEFAULT_RECEIVER = "default-receiver",
+  DEFAULT_SENDER = "default-sender",
+  ANNOUNCEMENT = "announcement",
+}
+
+const MessageTypeMap = {
+  [MessageType.DEFAULT_RECEIVER]: styles.messageWrapper,
+  [MessageType.DEFAULT_SENDER]: `${styles.messageWrapper} ${styles.localSentMessage}`,
+} as const;
+export function getStyle(message: Message, localUser: TUser) {
+  const isLocalSender = localUser.id === message.sender.id;
+  return cssClassConstructor([
+    styles.message,
+    isLocalSender ? styles.localSentMessage : "",
+  ]);
+}
+function cssClassConstructor(classes: string[]): string {
+  return classes
+    .filter((className) => className !== "")
+    .join(" ")
+    .trim();
 }
 
 type MessageSender = {
@@ -13,63 +36,3 @@ export type Message = {
   sender: MessageSender;
   message: string;
 };
-
-export const FAKE_MESSAGES: Message[] = [
-  {
-    key: "alskdnalksdn65",
-    type: MessageType.DEFAULT,
-    sender: { id: "a", name: "cooldude124" },
-    message: "Hello World",
-  },
-  {
-    key: "kbnoknbnob24n",
-    type: MessageType.DEFAULT,
-    sender: { id: "b", name: "luv_crayons" },
-    message: "This is a test!!!",
-  },
-  {
-    key: "189239aff",
-    type: MessageType.DEFAULT,
-    sender: { id: "c", name: "Edgar Allen Poe" },
-    message:
-      "Lorem ipsum dolor sit, amet consectetur adipisicing elit. Voluptate, in aliquid sapiente id maiores, amet non dolorum ipsum dignissimos quibusdam dolor assumenda quod. Temporibus exercitationem praesentium enim, ducimus odio consequuntur?",
-  },
-  {
-    key: "alskdnalksdn65",
-    type: MessageType.DEFAULT,
-    sender: { id: "a", name: "cooldude124" },
-    message: "Hello World",
-  },
-  {
-    key: "kbnoknbnob24n",
-    type: MessageType.DEFAULT,
-    sender: { id: "b", name: "luv_crayons" },
-    message: "This is a test!!!",
-  },
-  {
-    key: "189239aff",
-    type: MessageType.DEFAULT,
-    sender: { id: "c", name: "Edgar Allen Poe" },
-    message:
-      "Lorem ipsum dolor sit, amet consectetur adipisicing elit. Voluptate, in aliquid sapiente id maiores, amet non dolorum ipsum dignissimos quibusdam dolor assumenda quod. Temporibus exercitationem praesentium enim, ducimus odio consequuntur?",
-  },
-  {
-    key: "alskdnalksdn65",
-    type: MessageType.DEFAULT,
-    sender: { id: "a", name: "cooldude124" },
-    message: "1Hello World",
-  },
-  {
-    key: "kbnoknbnob24n",
-    type: MessageType.DEFAULT,
-    sender: { id: "b", name: "luv_crayons" },
-    message: "2This is a test!!!",
-  },
-  {
-    key: "189239aff",
-    type: MessageType.DEFAULT,
-    sender: { id: "c", name: "Edgar Allen Poe" },
-    message:
-      "3Lorem ipsum dolor sit, amet consectetur adipisicing elit. Voluptate, in aliquid sapiente id maiores, amet non dolorum ipsum dignissimos quibusdam dolor assumenda quod. Temporibus exercitationem praesentium enim, ducimus odio consequuntur?",
-  },
-];

@@ -1,6 +1,6 @@
 import React, { ReactNode, useState } from "react";
 
-type TUser = {
+export type TUser = {
   id: string;
   name: string;
 };

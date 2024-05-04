@@ -3,13 +3,17 @@ import "./App.css";
 import { Chat } from "./components/chat/Chat";
 import { AppContext, AppContextProvider } from "./App.context";
 import { Welcome } from "./components/welcome/Welcome";
+import { Game } from "./components/game/Game";
 
 function App() {
   const { localUser } = useContext(AppContext);
   return (
     <div className="app">
       <header>cadew.dev chat</header>
-      <main>{localUser === null ? <Welcome /> : <Chat />}</main>
+      <main>
+        <Game />
+        {localUser === null ? <Welcome /> : <Chat />}
+      </main>
       <footer>All Rights Reserved, Cade Weiskopf</footer>
     </div>
   );
