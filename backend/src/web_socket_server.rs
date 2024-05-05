@@ -9,6 +9,7 @@ use uuid::Uuid;
 use serde_json::Value;
 use url::Url;
 use crate::data::{User, parse_json_message};
+use rand::{thread_rng, Rng};
 
 pub async fn start_web_socket_server(
   clients_map: Arc<Mutex<HashMap<Uuid, Arc<Mutex<User>>>>>,
@@ -27,6 +28,9 @@ pub async fn start_web_socket_server(
   let dispatch_clients_map = clients_map.clone();
   let dispatch_messages_vec = messages_vec.clone();
   dispatch_messages_loop(dispatch_clients_map, dispatch_messages_vec).await?;
+
+  let game_clients_map = clients_map.clone();
+  game_loop(game_clients_map).await?;
 
   Ok::<_, Error>(())
 }
@@ -244,6 +248,118 @@ async fn dispatch_messages_loop(
         }
         std::mem::drop(clients_map_lock);
       }
+    }  
+  });
+  Ok::<_, Error>(())
+}
+
+enum TetrisShapes {
+  I,
+  O,
+  T,
+  S,
+  Z,
+  J,
+  L,
+}
+impl TetrisShapes {
+  fn as_str(&self) -> &'static str {
+    match self {
+      TetrisShapes::I => "I",
+      TetrisShapes::O => "O",
+      TetrisShapes::T => "T",
+      TetrisShapes::S => "S",
+      TetrisShapes::Z => "Z",
+      TetrisShapes::J => "J",
+      TetrisShapes::L => "L",
+    }
+  }
+}
+fn get_random_tetris_shape() -> TetrisShapes {
+  let index = thread_rng().gen_range(0..=6);
+  match index {
+    0 => TetrisShapes::I,
+    1 => TetrisShapes::O,
+    2 => TetrisShapes::T,
+    3 => TetrisShapes::S,
+    4 => TetrisShapes::Z,
+    5 => TetrisShapes::J,
+    6 => TetrisShapes::L,
+    _ => unreachable!(),
+  }
+}
+
+struct TetrisPiece {
+  is_stopped: bool,
+  shape: TetrisShapes  
+}
+
+enum GamePhase {
+  Pregame,
+  Starting,
+  Live
+}
+impl GamePhase {
+  fn as_str(&self) -> &'static str {
+    match self {
+      GamePhase::Pregame => "pregame",
+      GamePhase::Starting => "starting",
+      GamePhase::Live => "live",
+    }
+  }
+}
+
+struct GameState {
+  active_pieces: Vec<TetrisPiece>,
+  settled_pieces: Vec<TetrisPiece>,
+  game_phase: GamePhase,
+  init_time: std::time::Instant,
+  start_time: Option<std::time::Instant>,
+  live_time: Option<std::time::Instant>
+}
+
+async fn game_loop(
+  clients_map: Arc<Mutex<HashMap<Uuid, Arc<Mutex<User>>>>>, 
+) -> Result<(), Error> {
+  let pregame_time_limit = std::time::Duration::from_secs(10);
+  let mut game_state = GameState {
+    active_pieces: Vec::new(),
+    settled_pieces: Vec::new(),
+    game_phase: GamePhase::Pregame,
+    init_time: std::time::Instant::now(),
+    start_time: None,
+    live_time: None,
+  };
+  tokio::spawn(async move {
+    loop {
+      tokio::time::sleep(tokio::time::Duration::from_millis(17)).await;
+      let clients_map_lock = clients_map.lock().await;
+      for (id, user) in clients_map_lock.iter() {
+        // println!("game state: {}", game_state.game_phase.as_str());
+        match game_state.game_phase {
+          GamePhase::Pregame => {
+            println!("pregaming");
+            if game_state.init_time.elapsed() >= pregame_time_limit {
+              println!("make live!");
+              game_state.game_phase = GamePhase::Starting;
+            }
+          },
+          GamePhase::Starting => {
+            println!("starting...");
+            if let Some(start_time) = game_state.start_time {
+              if start_time.elapsed() >= pregame_time_limit {
+                game_state.game_phase = GamePhase::Live;
+              }
+            } else {
+              game_state.start_time = Some(std::time::Instant::now());
+            }
+          },
+          GamePhase::Live => {
+            println!("game is now live");
+          }
+        }
+      }
+      std::mem::drop(clients_map_lock);
     }  
   });
   Ok::<_, Error>(())
