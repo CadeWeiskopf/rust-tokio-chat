@@ -1,41 +1,18 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
-import { Message, MessageType, getStyle } from "./Chat.model";
+import React, { useContext, useEffect, useRef } from "react";
+import { getStyle } from "./Chat.model";
 import styles from "./Chat.module.css";
 import { AppContext } from "../../App.context";
+import { MessageTypes } from "../../socket/websocket.model";
 
 export const Chat: React.FC = () => {
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [websocket, setWebsocket] = useState<WebSocket>();
   const messageInput = useRef<HTMLInputElement>(null);
   const chatWindow = useRef<HTMLDivElement>(null);
   const sendButton = useRef<HTMLButtonElement>(null);
-  const { localUser } = useContext(AppContext);
+  const { localUser, sock, messages } = useContext(AppContext);
+
   if (localUser === null) {
     throw Error("user cannot be null to use chat");
   }
-
-  // handle websocket connection
-  useEffect(() => {
-    const websocket = new WebSocket(
-      `ws://127.0.0.1:8080?username=${localUser.name}&id=${localUser.id}`
-    );
-    websocket.onopen = (event: Event) => {
-      console.log(event);
-    };
-    websocket.onmessage = (event: MessageEvent<any>) => {
-      console.log(event);
-      // TODO: validate this data
-      const message = JSON.parse(event.data);
-      setMessages((messages) => {
-        messages.push(message);
-        return [...messages];
-      });
-    };
-    setWebsocket(websocket);
-    return () => {
-      websocket.close();
-    };
-  }, []);
 
   // when message received scroll the chat window down
   useEffect(() => {
@@ -51,21 +28,17 @@ export const Chat: React.FC = () => {
     if (!messageInput.current) {
       throw Error("missing message input ref");
     }
-    const messageToSend = messageInput.current.value.trim();
-    if (messageToSend.length <= 0) {
+    const message = messageInput.current.value.trim();
+    if (message.length <= 0) {
       return;
     }
-    if (websocket === undefined || websocket.readyState !== websocket.OPEN) {
-      alert("Not connected to server");
-      return;
-    }
-    websocket.send(
-      JSON.stringify({
-        key: "TBD",
-        sender: localUser,
-        message: messageToSend,
-      })
-    );
+
+    sock.send({
+      type: MessageTypes.GlobalChat,
+      sender: localUser,
+      message,
+    });
+
     messageInput.current.value = "";
     messageInput.current.dispatchEvent(
       new Event("input", { bubbles: true, cancelable: true })

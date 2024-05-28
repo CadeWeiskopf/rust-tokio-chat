@@ -1,17 +1,8 @@
 import { TUser } from "../../App.context";
+import { GlobalChatMessage } from "../../socket/websocket.model";
 import styles from "./Chat.module.css";
 
-export enum MessageType {
-  DEFAULT_RECEIVER = "default-receiver",
-  DEFAULT_SENDER = "default-sender",
-  ANNOUNCEMENT = "announcement",
-}
-
-const MessageTypeMap = {
-  [MessageType.DEFAULT_RECEIVER]: styles.messageWrapper,
-  [MessageType.DEFAULT_SENDER]: `${styles.messageWrapper} ${styles.localSentMessage}`,
-} as const;
-export function getStyle(message: Message, localUser: TUser) {
+export function getStyle(message: GlobalChatMessage, localUser: TUser) {
   const isLocalSender = localUser.id === message.sender.id;
   return cssClassConstructor([
     styles.message,
@@ -24,15 +15,3 @@ function cssClassConstructor(classes: string[]): string {
     .join(" ")
     .trim();
 }
-
-type MessageSender = {
-  id: string;
-  name: string;
-};
-
-export type Message = {
-  key: string;
-  type: MessageType;
-  sender: MessageSender;
-  message: string;
-};

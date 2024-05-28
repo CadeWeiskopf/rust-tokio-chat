@@ -87,6 +87,8 @@ pub async fn start_server(clients_username_map: Arc<Mutex<HashMap<String, Uuid>>
                     }
                   };
                 
+              } else if method == "POST" && path == "/challenge" {
+                
               }
             }
             Ok(httparse::Status::Partial) => {

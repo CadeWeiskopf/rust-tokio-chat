@@ -1,18 +1,17 @@
 import React, { useContext } from "react";
 import "./App.css";
-import { Chat } from "./components/chat/Chat";
 import { AppContext, AppContextProvider } from "./App.context";
-import { Welcome } from "./components/welcome/Welcome";
-import { Game } from "./components/game/Game";
+import { Welcome } from "./pages/welcome/Welcome";
+import { Lobby } from "./pages/lobby/Lobby";
 
 function App() {
-  const { localUser } = useContext(AppContext);
+  const { localUser, sock } = useContext(AppContext);
   return (
     <div className="app">
       <header>cadew.dev chat</header>
       <main>
-        <Game />
-        {localUser === null ? <Welcome /> : <Chat />}
+        {/* <Game /> */}
+        {!sock.websocket && !localUser ? <Welcome /> : <Lobby />}
       </main>
       <footer>All Rights Reserved, Cade Weiskopf</footer>
     </div>
