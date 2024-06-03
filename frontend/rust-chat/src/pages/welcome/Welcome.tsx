@@ -4,7 +4,7 @@ import { MessageTypes } from "../../socket/websocket.model";
 
 export const Welcome: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const { setLocalUser, sock, setMessages, setMatchRequests } =
+  const { setLocalUser, sock, setMessages, setMatchRequests, setCurrentMatch } =
     useContext(AppContext);
   const inputUsernameRef = useRef<HTMLInputElement>(null);
 
@@ -50,10 +50,14 @@ export const Welcome: React.FC = () => {
               return [...messages];
             });
           } else if (message.type === MessageTypes.MatchRequest) {
-            console.log("matchreq");
             setMatchRequests((matchRequests) => {
               matchRequests.push(message);
               return [...matchRequests];
+            });
+          } else if (message.type === MessageTypes.MatchStart) {
+            console.log("set match");
+            setCurrentMatch({
+              users: message.users,
             });
           }
         };

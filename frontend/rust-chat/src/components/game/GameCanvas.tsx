@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-export const Game: React.FC = () => {
+export const GameCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {

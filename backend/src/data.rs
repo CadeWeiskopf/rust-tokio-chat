@@ -22,13 +22,19 @@ pub fn parse_json_message(data: &str) -> serde_json::Result<serde_json::Value> {
 
 pub enum MessageTypes {
   GlobalChat,
-  MatchRequest
+  MatchRequest,
+  MatchAccept,
+  MatchStart,
+  MatchUpdate
 }
 impl MessageTypes {
   pub fn as_u8(&self) -> &'static u8 {
     match self {
       MessageTypes::GlobalChat => &0,
-      MessageTypes::MatchRequest => &1
+      MessageTypes::MatchRequest => &1,
+      MessageTypes::MatchAccept => &2,
+      MessageTypes::MatchStart => &3,
+      MessageTypes::MatchUpdate => &4
     }
   }
 }

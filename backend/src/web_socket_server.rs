@@ -2,6 +2,7 @@ use std::error;
 use std::str::FromStr;
 use std::{borrow::Borrow, collections::HashMap};
 use std::sync::Arc;
+use futures_util::future::join_all;
 use http::header::HOST;
 use tokio::sync::Mutex;
 use futures_util::{SinkExt, StreamExt};
@@ -170,7 +171,8 @@ async fn client_connection_handler(
           matched_with: None,
           active_requests: Arc::new(Mutex::new(Vec::new()))
         };
-        clients_map_lock.insert(id, Arc::new(Mutex::new(new_user)));
+        let new_user_arc_mtx = Arc::new(Mutex::new(new_user));
+        clients_map_lock.insert(id, new_user_arc_mtx.clone());
         
         // let mut clients_usersname_map_lock = clients_usernames_map.lock().await;
         // let username_value_lowercase = username_value.to_lowercase();
@@ -206,7 +208,7 @@ async fn client_connection_handler(
                                   // user cant challenge themself
                                   return;
                                 }
-                                let client_map_lock = clients_map_remove_clone.lock().await;
+                                let client_map_lock: tokio::sync::MutexGuard<HashMap<Uuid, Arc<Mutex<User>>>> = clients_map_remove_clone.lock().await;
                                 if let Some(user) = client_map_lock.get(user_id) {
                                   println!("got user");
                                   let user_to_challenge_lock = user.lock().await;
@@ -240,11 +242,45 @@ async fn client_connection_handler(
                               std::mem::drop(client_username_map_lock);
                             }
                             _ => {
-                              // send message to chat
-                              msg_json["key"] = Value::String(Uuid::new_v4().to_string());
-                              let mut messages_vec_lock = msg_vec_clone.lock().await;
-                              messages_vec_lock.push(msg_json);
-                              std::mem::drop(messages_vec_lock);
+                              match &msg_json["matchAccept"] {
+                                serde_json::Value::String(user_id_to_accept) => {
+                                  let client_map_lock: tokio::sync::MutexGuard<HashMap<Uuid, Arc<Mutex<User>>>> = clients_map_remove_clone.lock().await;
+                                  if let Ok(user_uuid) = Uuid::from_str(user_id_to_accept) {
+                                    if let Some(user_to_accept) = client_map_lock.get(&user_uuid) {
+                                      let user_lock = user_to_accept.lock().await;
+                                      println!("user's active reqs: {:?}, req from: {:?}", user_lock.active_requests, id);
+                                      let mut active_requests_lock = user_lock.active_requests.lock().await;
+                                      if active_requests_lock.contains(&id) {
+                                        println!("should accept");
+                                        let local_user_lock = new_user_arc_mtx.lock().await;
+                                        let mut local_active_reqs_lock = local_user_lock.active_requests.lock().await;
+                                        local_active_reqs_lock.clear();
+                                        std::mem::drop(local_active_reqs_lock);
+                                        std::mem::drop(local_user_lock);
+                                        active_requests_lock.clear();
+                                        let mut clients_in_match: HashMap<Uuid, Arc<Mutex<User>>> = HashMap::new();
+                                        clients_in_match.insert(user_uuid, user_to_accept.clone());
+                                        clients_in_match.insert(id, new_user_arc_mtx.clone());
+                                        let clients_in_match_mtx = Arc::new(Mutex::new(clients_in_match));
+                                        game_loop(clients_in_match_mtx).await;
+                                      }
+                                      std::mem::drop(active_requests_lock);
+                                      std::mem::drop(user_lock);
+                                          
+                                    }
+                                  } else {
+                                    eprintln!("err converting match accept id to uuid");
+                                  }
+                                  std::mem::drop(client_map_lock);
+                                },
+                                _ => {
+                                  // send message to chat
+                                  msg_json["key"] = Value::String(Uuid::new_v4().to_string());
+                                  let mut messages_vec_lock = msg_vec_clone.lock().await;
+                                  messages_vec_lock.push(msg_json);
+                                  std::mem::drop(messages_vec_lock);   
+                                }
+                              }
                             }
                           }
                         },
@@ -397,9 +433,9 @@ struct GameState {
 }
 
 async fn game_loop(
-  clients_map: Arc<Mutex<HashMap<Uuid, Arc<Mutex<User>>>>>, 
-  messages_vec: Arc<Mutex<Vec<Value>>>
+  clients_map: Arc<Mutex<HashMap<Uuid, Arc<Mutex<User>>>>>
 ) -> Result<(), Error> {
+  println!("game loop"); 
   let pregame_time_limit = std::time::Duration::from_secs(10);
   let mut game_state = GameState {
     active_pieces: Vec::new(),
@@ -409,42 +445,100 @@ async fn game_loop(
     start_time: None,
     live_time: None,
   };
+  
   tokio::spawn(async move {
+    let clients_map_lock = clients_map.lock().await;
+    let user_keys_futures = clients_map_lock.clone().into_iter().map(|(key,value)| {
+      async move {
+        json!({
+          "key": key.to_string(),
+          "name": value.lock().await.name
+        })
+      }
+    });
+    let user_keys = join_all(user_keys_futures).await;
+    let send_futures = clients_map_lock.clone().into_iter().map(|(_uuid, user_arc_mtx)| {
+      let user_keys_clone = user_keys.clone();
+      async move {
+        let user_lock = user_arc_mtx.lock().await;
+        let mut user_tx_lock = user_lock.tx_stream.lock().await;
+        let message_to_send = json!({
+          "type": MessageTypes::MatchStart.as_u8(),
+          "users": user_keys_clone
+        });
+        user_tx_lock.send(Message::text(message_to_send.to_string())).await;
+        std::mem::drop(user_tx_lock);
+        std::mem::drop(user_lock);
+      }
+    });
+    std::mem::drop(clients_map_lock);
+    join_all(send_futures).await;
     loop {
       tokio::time::sleep(tokio::time::Duration::from_millis(17)).await;
-      let clients_map_lock = clients_map.lock().await;
-      let mut messages_vec_lock = messages_vec.lock().await;
-      for (id, user) in clients_map_lock.iter() {
-        // println!("game state: {}", game_state.game_phase.as_str());
-        match game_state.game_phase {
-          GamePhase::Pregame => {
-            println!("pregaming");
-            if game_state.init_time.elapsed() >= pregame_time_limit {
-              println!("make live!");
-              game_state.game_phase = GamePhase::Starting;
-            }
-          },
-          GamePhase::Starting => {
-            println!("starting...");
-            if let Some(start_time) = game_state.start_time {
-              if start_time.elapsed() >= pregame_time_limit {
-                game_state.game_phase = GamePhase::Live;
+      match game_state.game_phase {
+        GamePhase::Pregame => {
+          if game_state.init_time.elapsed() >= pregame_time_limit {
+            println!("pregame -> starting");
+            game_state.game_phase = GamePhase::Starting;
+            let clients_map_lock = clients_map.lock().await;
+            let send_futures = clients_map_lock.clone().into_iter().map(|(_uuid, user_arc_mtx)| {
+              async move {
+                let user_lock = user_arc_mtx.lock().await;
+                let mut user_tx_lock = user_lock.tx_stream.lock().await;
+                user_tx_lock.send(Message::text(json!({
+                  "type": MessageTypes::MatchUpdate.as_u8(),
+                  "gamePhase": 0
+                }).to_string())).await;
+                std::mem::drop(user_tx_lock);
+                std::mem::drop(user_lock);
               }
-            } else {
-              game_state.start_time = Some(std::time::Instant::now());
+            });
+            std::mem::drop(clients_map_lock);
+            join_all(send_futures).await;
+          }
+        },
+        GamePhase::Starting => {
+          if let Some(start_time) = game_state.start_time {
+            if start_time.elapsed() >= pregame_time_limit {
+              println!("starting -> live");
+              game_state.game_phase = GamePhase::Live;
             }
-          },
-          GamePhase::Live => {
+          } else {
+            game_state.start_time = Some(std::time::Instant::now());
+          }
+        },
+        GamePhase::Live => {
+          let fps = 32;
+          let rate = 1000.0 / (fps as f32);
+          let mut update_interval = tokio::time::interval(std::time::Duration::from_millis(rate as u64));
+          loop {
+            update_interval.tick().await;
+            // println!("update tick");
 
-            println!("game is now live");
-            let n = messages_vec_lock.len();
-            for message in messages_vec_lock.drain(0..n) {
-              println!("{:?}", message);
-            }
+            // TODO: game process logic
+
+            // dispatch tick update
+            let clients_map_lock = clients_map.lock().await;
+            let send_futures = clients_map_lock.clone().into_iter().map(|(_uuid, user_arc_mtx)| {
+              async move {
+                let user_lock = user_arc_mtx.lock().await;
+                let mut user_tx_lock = user_lock.tx_stream.lock().await;
+                let send_result = user_tx_lock.send(Message::text(json!({
+                  "type": MessageTypes::MatchUpdate.as_u8(),
+                  "tbd": 0
+                }).to_string())).await;
+                if let Err(send_err) = send_result {
+                  // err sending, possible disconnect
+                }
+                std::mem::drop(user_tx_lock);
+                std::mem::drop(user_lock);
+              }
+            });
+            std::mem::drop(clients_map_lock);
+            join_all(send_futures).await;
           }
         }
       }
-      std::mem::drop(clients_map_lock);
     }  
   });
   Ok::<_, Error>(())

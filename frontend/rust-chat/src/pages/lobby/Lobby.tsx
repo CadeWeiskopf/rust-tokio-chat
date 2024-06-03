@@ -26,6 +26,17 @@ export const Lobby: React.FC = () => {
     alert(`challenge sent to ${userToChallenge}`);
   };
 
+  const handleAcceptChallenge = (requesterUserId: string) => {
+    if (!sock.websocket) {
+      throw Error("no websocket");
+    }
+    sock.send({
+      type: MessageTypes.MatchAccept,
+      matchAccept: requesterUserId,
+      sender: localUser,
+    });
+  };
+
   return (
     <div>
       <h1>lobby</h1>
@@ -43,7 +54,15 @@ export const Lobby: React.FC = () => {
       </div>
       <div>
         {matchRequests.map((matchRequest) => (
-          <>{JSON.stringify(matchRequest)}</>
+          <>
+            {JSON.stringify(matchRequest)}
+            <button
+              type="button"
+              onClick={() => handleAcceptChallenge(matchRequest.requestFrom.id)}
+            >
+              accept
+            </button>
+          </>
         ))}
       </div>
     </div>
