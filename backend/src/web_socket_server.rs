@@ -495,15 +495,27 @@ async fn game_loop(
         GamePhase::Live => {
           let fps = 32;
           let rate = 1000.0 / (fps as f32);
+          const GRAVITY: f32 = 0.5;
           let mut update_interval = tokio::time::interval(std::time::Duration::from_millis(rate as u64));
           let mut game_pieces: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
+          const GRID_WIDTH: u8 = 20;
+          const GRID_HEIGHT: u8 = 24;
           loop {
             update_interval.tick().await;
             // println!("update tick");
-
+            
             // dispatch tick update
             let clients_map_lock = clients_map.lock().await;
             let mut game_pieces_lock = game_pieces.lock().await;
+            for piece in game_pieces_lock.iter_mut() {
+              if let Some(y) = piece["position"]["y"].as_f64() {
+                if y + (GRAVITY as f64) < GRID_HEIGHT as f64 {
+                    piece["position"]["y"] = json!(y + GRAVITY as f64);
+                } else {
+                    piece["isPlaced"] = json!(true);
+                }
+              }
+            }
             for (i, (uuid, user_arc_mtx)) in clients_map_lock.iter().enumerate() {
               let tetris_shape = get_random_tetris_shape();
               let exists = game_pieces_lock.iter().any(|piece| {
@@ -514,7 +526,7 @@ async fn game_loop(
                   "owner": uuid.to_string(),
                   "shape": tetris_shape.as_str(),
                   "position": {
-                    "x": if i % 2 != 0 { 100 } else { 0 },
+                    "x": if i % 2 != 0 { GRID_WIDTH / 2 } else { 0 },
                     "y": 0
                   },
                   "isPlaced": false
