@@ -480,21 +480,6 @@ async fn game_loop(
           if game_state.init_time.elapsed() >= pregame_time_limit {
             println!("pregame -> starting");
             game_state.game_phase = GamePhase::Starting;
-            let clients_map_lock = clients_map.lock().await;
-            let send_futures = clients_map_lock.clone().into_iter().map(|(_uuid, user_arc_mtx)| {
-              async move {
-                let user_lock = user_arc_mtx.lock().await;
-                let mut user_tx_lock = user_lock.tx_stream.lock().await;
-                user_tx_lock.send(Message::text(json!({
-                  "type": MessageTypes::MatchUpdate.as_u8(),
-                  "gamePhase": 0
-                }).to_string())).await;
-                std::mem::drop(user_tx_lock);
-                std::mem::drop(user_lock);
-              }
-            });
-            std::mem::drop(clients_map_lock);
-            join_all(send_futures).await;
           }
         },
         GamePhase::Starting => {
@@ -511,31 +496,52 @@ async fn game_loop(
           let fps = 32;
           let rate = 1000.0 / (fps as f32);
           let mut update_interval = tokio::time::interval(std::time::Duration::from_millis(rate as u64));
+          let mut game_pieces: Arc<Mutex<Vec<Value>>> = Arc::new(Mutex::new(Vec::new()));
           loop {
             update_interval.tick().await;
             // println!("update tick");
 
-            // TODO: game process logic
-
             // dispatch tick update
             let clients_map_lock = clients_map.lock().await;
-            let send_futures = clients_map_lock.clone().into_iter().map(|(_uuid, user_arc_mtx)| {
+            let mut game_pieces_lock = game_pieces.lock().await;
+            for (i, (uuid, user_arc_mtx)) in clients_map_lock.iter().enumerate() {
+              let tetris_shape = get_random_tetris_shape();
+              let exists = game_pieces_lock.iter().any(|piece| {
+                piece["owner"] == uuid.to_string() && piece["isPlaced"] == false
+              });
+              if !exists {
+                game_pieces_lock.push(json!({
+                  "owner": uuid.to_string(),
+                  "shape": tetris_shape.as_str(),
+                  "position": {
+                    "x": if i % 2 != 0 { 100 } else { 0 },
+                    "y": 0
+                  },
+                  "isPlaced": false
+                }));
+              }
+            }
+            let send_futures = clients_map_lock.iter().map(|(uuid, user_arc_mtx)| {
+              let game_piece_lock_clone = game_pieces_lock.clone();
               async move {
+                let tetris_shape = get_random_tetris_shape();
+                let msg = json!({
+                  "type": MessageTypes::MatchUpdate.as_u8(),
+                  "gamePieces": serde_json::Value::from_iter(game_piece_lock_clone.into_iter())
+                });
                 let user_lock = user_arc_mtx.lock().await;
                 let mut user_tx_lock = user_lock.tx_stream.lock().await;
-                let send_result = user_tx_lock.send(Message::text(json!({
-                  "type": MessageTypes::MatchUpdate.as_u8(),
-                  "tbd": 0
-                }).to_string())).await;
+                let send_result = user_tx_lock.send(Message::text(msg.to_string())).await;
                 if let Err(send_err) = send_result {
                   // err sending, possible disconnect
+                  println!("Disconnected");
                 }
                 std::mem::drop(user_tx_lock);
                 std::mem::drop(user_lock);
               }
             });
-            std::mem::drop(clients_map_lock);
             join_all(send_futures).await;
+            std::mem::drop(clients_map_lock);
           }
         }
       }

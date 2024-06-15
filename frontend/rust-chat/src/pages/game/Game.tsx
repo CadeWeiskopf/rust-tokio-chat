@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
 import { AppContext } from "../../App.context";
+import { GameCanvas } from "../../components/game/GameCanvas";
 
 export const Game: React.FC = () => {
   const { currentMatch } = useContext(AppContext);
@@ -10,6 +11,7 @@ export const Game: React.FC = () => {
     <div>
       <h2>in game</h2>
       <h3>{currentMatch.users.map((e) => e.name).join(", ")}</h3>
+      <GameCanvas />
     </div>
   );
 };

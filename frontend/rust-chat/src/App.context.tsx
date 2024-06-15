@@ -15,6 +15,11 @@ export type GameMatch = {
   users: TUser[];
 };
 
+export type GamePiece = {
+  shape: "I" | "O" | "T" | "S" | "Z" | "J" | "L";
+  position: { x: number; y: number };
+};
+
 interface IAppContext {
   localUser: TUser | null;
   setLocalUser: React.Dispatch<React.SetStateAction<TUser | null>>;
@@ -25,6 +30,8 @@ interface IAppContext {
   setMatchRequests: React.Dispatch<React.SetStateAction<MatchRequest[]>>;
   currentMatch?: GameMatch;
   setCurrentMatch: React.Dispatch<React.SetStateAction<GameMatch | undefined>>;
+  gamePieces: GamePiece[];
+  setGamePieces: React.Dispatch<React.SetStateAction<GamePiece[]>>;
 }
 
 type TAppContextProvider = {
@@ -41,6 +48,8 @@ export const AppContext = React.createContext<IAppContext>({
   matchRequests: [],
   setMatchRequests: () => {},
   setCurrentMatch: () => {},
+  gamePieces: [],
+  setGamePieces: () => undefined,
 });
 
 export const AppContextProvider: React.FC<TAppContextProvider> = (props) => {
@@ -48,6 +57,7 @@ export const AppContextProvider: React.FC<TAppContextProvider> = (props) => {
   const [messages, setMessages] = useState<GlobalChatMessage[]>([]);
   const [matchRequests, setMatchRequests] = useState<MatchRequest[]>([]);
   const [currentMatch, setCurrentMatch] = useState<GameMatch>();
+  const [gamePieces, setGamePieces] = useState<GamePiece[]>([]);
   return (
     <AppContext.Provider
       value={{
@@ -60,6 +70,8 @@ export const AppContextProvider: React.FC<TAppContextProvider> = (props) => {
         setMatchRequests,
         currentMatch,
         setCurrentMatch,
+        gamePieces,
+        setGamePieces,
       }}
     >
       {props.children}
