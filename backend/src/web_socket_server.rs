@@ -388,7 +388,20 @@ impl TetrisShapes {
       TetrisShapes::L => "L",
     }
   }
+  
+  fn get_shape_coords(&self) -> &'static [[i32; 2]] {
+    match self {
+      TetrisShapes::I => &[[0, 0], [1, 0], [2, 0], [3, 0]],
+      TetrisShapes::O => &[[0, 0], [1, 0], [0, 1], [1, 1]],
+      TetrisShapes::T => &[[1, 0], [0, 1], [1, 1], [2, 1]],
+      TetrisShapes::S => &[[1, 0], [2, 0], [0, 1], [1, 1]],
+      TetrisShapes::Z => &[[0, 0], [1, 0], [1, 1], [2, 1]],
+      TetrisShapes::J => &[[0, 0], [0, 1], [1, 1], [2, 1]],
+      TetrisShapes::L => &[[2, 0], [0, 1], [1, 1], [2, 1]],
+    }
+  }
 }
+
 fn get_random_tetris_shape() -> TetrisShapes {
   let index = thread_rng().gen_range(0..=6);
   match index {
@@ -509,10 +522,35 @@ async fn game_loop(
             let mut game_pieces_lock = game_pieces.lock().await;
             for piece in game_pieces_lock.iter_mut() {
               if let Some(y) = piece["position"]["y"].as_f64() {
-                if y + (GRAVITY as f64) < GRID_HEIGHT as f64 {
-                    piece["position"]["y"] = json!(y + GRAVITY as f64);
-                } else {
+                // let shape_coords = piece["shape"].ge
+                if let Some(shape_str) = piece["shape"].as_str() {
+                  let shape_enum = match shape_str {
+                    "I" => TetrisShapes::I,
+                    "O" => TetrisShapes::O,
+                    "T" => TetrisShapes::T,
+                    "S" => TetrisShapes::S,
+                    "Z" => TetrisShapes::Z,
+                    "J" => TetrisShapes::J,
+                    "L" => TetrisShapes::L,
+                    _ => {
+                      eprintln!("shape is not a shape");
+                      continue;
+                    }
+                  };
+                  let shape_coords = shape_enum.get_shape_coords();
+                  let mut can_move_down = true;
+                  for &[dx, dy] in shape_coords {
+                    let new_y = y + dy as f64 + 1.0;
+                    if new_y >= GRID_HEIGHT as f64 {
+                      can_move_down = false;
+                      break;
+                    }
+                  }
+                  if can_move_down {
+                    piece["position"]["y"] = json!(y as f64 + GRAVITY as f64);
+                  } else {
                     piece["isPlaced"] = json!(true);
+                  }
                 }
               }
             }
