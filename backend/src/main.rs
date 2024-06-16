@@ -1,6 +1,7 @@
 mod http_server;
 mod web_socket_server;
 mod data;
+mod game;
 
 use tokio_websockets::Error;
 use uuid::Uuid;
